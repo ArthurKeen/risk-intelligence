@@ -15,13 +15,17 @@ def verify_risk():
         if not db.has_collection(coll):
             continue
             
-        count = len(list(db.aql.execute(f"FOR d IN {coll} FILTER d.riskScore > 0 RETURN 1")))
+        count_direct = len(list(db.aql.execute(f"FOR d IN {coll} FILTER d.riskScore > 0 RETURN 1")))
+        count_inferred = len(list(db.aql.execute(f"FOR d IN {coll} FILTER d.inferredRisk > 0 RETURN 1")))
         
-        avg_q = f"FOR d IN {coll} FILTER d.riskScore > 0 COLLECT AGGREGATE a = AVERAGE(d.riskScore) RETURN a"
+        avg_q = f"FOR d IN {coll} FILTER d.inferredRisk > 0 COLLECT AGGREGATE a = AVERAGE(d.inferredRisk) RETURN a"
         avg_res = list(db.aql.execute(avg_q))
         avg = avg_res[0] if avg_res and avg_res[0] is not None else 0
         
-        print(f"  {coll}: {count} nodes with riskScore. Average risk: {avg:.2f}")
+        print(f"  {coll}:")
+        print(f"    Direct Risk Nodes:   {count_direct}")
+        print(f"    Inferred Risk Nodes: {count_inferred}")
+        print(f"    Average Inferred:    {avg:.2f}")
 
 if __name__ == "__main__":
     verify_risk()

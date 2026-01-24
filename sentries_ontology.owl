@@ -57,6 +57,11 @@
         <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string"/>
     </owl:DatatypeProperty>
 
+    <owl:DatatypeProperty rdf:about="http://www.semanticweb.org/sentries#inferredRisk">
+        <rdfs:domain rdf:resource="http://www.semanticweb.org/sentries#Entity"/>
+        <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#decimal"/>
+    </owl:DatatypeProperty>
+
 
     <!-- 
     ///////////////////////////////////////////////////////////////////////////////////////

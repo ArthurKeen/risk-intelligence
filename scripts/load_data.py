@@ -160,8 +160,19 @@ def load_data():
                     edge_batches[edge_col] = []
                 edge_batches[edge_col].append(doc)
 
+    # Mapping for propagation weights
+    weight_map = {
+        "owned_by": 1.0,
+        "leader_of": 0.8,
+        "family_member_of": 0.5,
+        "operates": 0.9
+    }
+
     for edge_col, docs in edge_batches.items():
         print(f"Loading {len(docs)} to {edge_col}...")
+        weight = weight_map.get(edge_col, 0.1)
+        for doc in docs:
+            doc["propagationWeight"] = weight
         db.collection(edge_col).import_bulk(docs, overwrite=True)
 
     # Define 3 Graphs
