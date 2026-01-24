@@ -1,0 +1,126 @@
+{
+    "graphId": "SentriesRisk",
+    "name": "sentries",
+    "description": "Standard theme for Risk Management Knowledge Graph",
+    "nodeConfigMap": {
+        "Person": {
+            "background": {
+                "color": "#3182ce",
+                "iconName": "fa6-solid:user"
+            },
+            "labelAttribute": "primaryName",
+            "hoverInfoAttributes": [
+                "primaryName",
+                "party_id",
+                "riskScore"
+            ],
+            "rules": [
+                {
+                    "name": "High Risk",
+                    "condition": "riskScore >= 0.8",
+                    "background": {
+                        "color": "#e53e3e"
+                    }
+                },
+                {
+                    "name": "Medium Risk",
+                    "condition": "riskScore >= 0.3 && riskScore < 0.8",
+                    "background": {
+                        "color": "#ecc94b"
+                    }
+                },
+                {
+                    "name": "Low Risk",
+                    "condition": "riskScore < 0.3",
+                    "background": {
+                        "color": "#38a169"
+                    }
+                }
+            ]
+        },
+        "Organization": {
+            "background": {
+                "color": "#38a169",
+                "iconName": "fa6-solid:building"
+            },
+            "labelAttribute": "primaryName",
+            "hoverInfoAttributes": [
+                "primaryName",
+                "party_id",
+                "riskScore"
+            ],
+            "rules": [
+                {
+                    "name": "High Risk",
+                    "condition": "riskScore >= 0.8",
+                    "background": {
+                        "color": "#e53e3e"
+                    }
+                }
+            ]
+        },
+        "Vessel": {
+            "background": {
+                "color": "#319795",
+                "iconName": "fa6-solid:ship"
+            },
+            "labelAttribute": "primaryName",
+            "hoverInfoAttributes": [
+                "primaryName",
+                "party_id"
+            ],
+            "rules": []
+        },
+        "Aircraft": {
+            "background": {
+                "color": "#ed8936",
+                "iconName": "fa6-solid:plane"
+            },
+            "labelAttribute": "primaryName",
+            "hoverInfoAttributes": [
+                "primaryName",
+                "party_id"
+            ],
+            "rules": []
+        }
+    },
+    "edgeConfigMap": {
+        "owned_by": {
+            "lineStyle": {
+                "color": "#d69e2e",
+                "thickness": 1.2
+            },
+            "arrowStyle": {
+                "targetArrowShape": "triangle"
+            },
+            "labelAttribute": "rel_type_id"
+        },
+        "family_member_of": {
+            "lineStyle": {
+                "color": "#805ad5",
+                "thickness": 1.0
+            },
+            "arrowStyle": {
+                "targetArrowShape": "none"
+            }
+        },
+        "leader_of": {
+            "lineStyle": {
+                "color": "#4299e1",
+                "thickness": 1.0
+            },
+            "arrowStyle": {
+                "targetArrowShape": "triangle"
+            }
+        },
+        "operates": {
+            "lineStyle": {
+                "color": "#4a5568",
+                "thickness": 0.8
+            },
+            "arrowStyle": {
+                "targetArrowShape": "triangle"
+            }
+        }
+    }
+}

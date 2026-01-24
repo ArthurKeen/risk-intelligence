@@ -1,0 +1,148 @@
+{
+    "graphId": "KnowledgeGraph",
+    "name": "sentries_standard",
+    "description": "Standard base theme with label-based naming for maximal visualizer compatibility",
+    "nodeConfigMap": {
+        "Person": {
+            "background": {
+                "color": "#3182ce",
+                "iconName": "fa6-solid:user"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "party_id",
+                "riskScore"
+            ]
+        },
+        "Organization": {
+            "background": {
+                "color": "#38a169",
+                "iconName": "fa6-solid:building"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "party_id",
+                "riskScore"
+            ]
+        },
+        "Vessel": {
+            "background": {
+                "color": "#319795",
+                "iconName": "fa6-solid:ship"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "party_id"
+            ]
+        },
+        "Aircraft": {
+            "background": {
+                "color": "#ed8936",
+                "iconName": "fa6-solid:plane"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "party_id"
+            ]
+        },
+        "Class": {
+            "background": {
+                "color": "#9f7aea",
+                "iconName": "fa6-solid:shapes"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "_id"
+            ]
+        },
+        "Property": {
+            "background": {
+                "color": "#48bb78",
+                "iconName": "fa6-solid:link"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "_id"
+            ]
+        },
+        "ObjectProperty": {
+            "background": {
+                "color": "#48bb78",
+                "iconName": "fa6-solid:link"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "_id"
+            ]
+        },
+        "Ontology": {
+            "background": {
+                "color": "#4a5568",
+                "iconName": "fa6-solid:database"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "_id"
+            ]
+        }
+    },
+    "edgeConfigMap": {
+        "owned_by": {
+            "lineStyle": {
+                "color": "#d69e2e",
+                "thickness": 1.2
+            },
+            "arrowStyle": {
+                "targetArrowShape": "triangle"
+            },
+            "labelAttribute": "label"
+        },
+        "family_member_of": {
+            "lineStyle": {
+                "color": "#805ad5",
+                "thickness": 1.0
+            },
+            "labelAttribute": "label"
+        },
+        "subClassOf": {
+            "lineStyle": {
+                "color": "#3182ce",
+                "thickness": 0.8,
+                "lineType": "dashed"
+            },
+            "arrowStyle": {
+                "targetArrowShape": "triangle"
+            },
+            "labelAttribute": "label"
+        },
+        "domain": {
+            "lineStyle": {
+                "color": "#a0aec0",
+                "thickness": 0.5
+            },
+            "labelAttribute": "label"
+        },
+        "range": {
+            "lineStyle": {
+                "color": "#a0aec0",
+                "thickness": 0.5
+            },
+            "labelAttribute": "label"
+        },
+        "type": {
+            "lineStyle": {
+                "color": "#38a169",
+                "thickness": 0.5
+            },
+            "labelAttribute": "label"
+        }
+    }
+}
