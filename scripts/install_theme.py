@@ -1,5 +1,7 @@
 import os
 import json
+import sys
+import copy
 from datetime import datetime
 from dotenv import load_dotenv
 from arango import ArangoClient
@@ -18,54 +20,204 @@ THEME_FILES = [
     "docs/sentries_risk_heatmap.json"
 ]
 
-def install_themes():
-    # Initialize ArangoDB Client
+TARGET_GRAPHS = ["OntologyGraph", "DataGraph", "KnowledgeGraph"]
+
+def get_db():
+    if not ARANGO_ENDPOINT or not ARANGO_PASSWORD:
+        print("Error: ARANGO_ENDPOINT or ARANGO_PASSWORD not set.")
+        sys.exit(1)
+        
     client = ArangoClient(hosts=ARANGO_ENDPOINT)
-    db = client.db(ARANGO_DATABASE, username=ARANGO_USERNAME, password=ARANGO_PASSWORD)
+    return client.db(ARANGO_DATABASE, username=ARANGO_USERNAME, password=ARANGO_PASSWORD)
+
+def get_graph_schema(db, graph_name):
+    """Fetches the actual vertex and edge collections for a graph."""
+    if not db.has_graph(graph_name):
+        return None, None
     
-    # Ensure collection exists
+    graph = db.graph(graph_name)
+    vertex_colls = set(graph.vertex_collections())
+    edge_definitions = graph.edge_definitions()
+    edge_colls = set(ed['edge_collection'] for ed in edge_definitions)
+    
+    return vertex_colls, edge_colls
+
+def install_canvas_actions(db, graph_name, vertex_colls, edge_colls):
+    """Installs context-aware canvas actions tailored to the graph's schema."""
+    # Ensure necessary collections exist
+    for coll in ["_canvasActions", "_viewpoints"]:
+        if not db.has_collection(coll):
+            db.create_collection(coll)
+    
+    if not db.has_collection("_viewpointActions"):
+        db.create_collection("_viewpointActions", edge=True)
+
+    canvas_col = db.collection("_canvasActions")
+    vp_col = db.collection("_viewpoints")
+    vp_act_col = db.collection("_viewpointActions")
+
+    # 1. Ensure Default Viewpoint exists for the graph
+    vp_name = f"Default - {graph_name}"
+    existing_vp = list(vp_col.find({"graphId": graph_name, "name": vp_name}))
+    if not existing_vp:
+        # Fallback to any viewpoint for this graph
+        existing_vp = list(vp_col.find({"graphId": graph_name}))
+    
+    if not existing_vp:
+        now = datetime.utcnow().isoformat() + "Z"
+        vp_doc = {
+            "graphId": graph_name,
+            "name": vp_name,
+            "description": f"Default viewpoint for {graph_name}",
+            "createdAt": now,
+            "updatedAt": now
+        }
+        res = vp_col.insert(vp_doc)
+        vp_id = res["_id"]
+        print(f"    Created viewpoint: {vp_name}")
+    else:
+        vp_id = existing_vp[0]["_id"]
+
+    # 2. Create Canvas Actions only for vertex collections in this graph
+    edge_list_str = ", ".join(edge_colls)
+    
+    actions_installed = 0
+    for v_coll in vertex_colls:
+        action_title = f"[{v_coll}] Expand Relationships"
+        
+        query = f"""FOR node IN @nodes
+  FOR v, e, p IN 1..1 ANY node
+    {edge_list_str}
+    FILTER IS_SAME_COLLECTION("{v_coll}", v)
+    LIMIT 20
+    RETURN p"""
+
+        now = datetime.utcnow().isoformat() + "Z"
+        action_doc = {
+            "title": action_title,
+            "name": action_title,
+            "description": f"Expand related entities for {v_coll}",
+            "query": query,
+            "queryText": query,
+            "graphId": graph_name,
+            "bindVariables": {
+                "nodes": []
+            },
+            "updatedAt": now
+        }
+
+        # Update or Insert action
+        existing_action = list(canvas_col.find({"name": action_title, "graphId": graph_name}))
+        if existing_action:
+            action_id = existing_action[0]["_id"]
+            canvas_col.update({"_key": existing_action[0]["_key"]}, action_doc)
+        else:
+            action_doc["createdAt"] = now
+            res = canvas_col.insert(action_doc)
+            action_id = res["_id"]
+
+        # 3. Link Action to Viewpoint
+        edge_exists = list(vp_act_col.find({"_from": vp_id, "_to": action_id}))
+        if not edge_exists:
+            vp_act_col.insert({
+                "_from": vp_id,
+                "_to": action_id,
+                "createdAt": now,
+                "updatedAt": now
+            })
+        actions_installed += 1
+    
+    print(f"    Installed {actions_installed} canvas actions for {graph_name}")
+
+def prune_theme(base_theme_raw, vertex_colls, edge_colls):
+    """Removes configurations for collections not present in the graph schema."""
+    # Use copy.deepcopy to ensure we are working on a fresh copy of the original theme
+    theme = copy.deepcopy(base_theme_raw)
+    
+    # Prune node configurations
+    if "nodeConfigMap" in theme:
+        # Create a new dictionary with only valid nodes
+        pruned_nodes = {}
+        for node, config in theme["nodeConfigMap"].items():
+            if node in vertex_colls:
+                pruned_nodes[node] = config
+        theme["nodeConfigMap"] = pruned_nodes
+    
+    # Prune edge configurations
+    if "edgeConfigMap" in theme:
+        pruned_edges = {}
+        for edge, config in theme["edgeConfigMap"].items():
+            if edge in edge_colls:
+                pruned_edges[edge] = config
+        theme["edgeConfigMap"] = pruned_edges
+                
+    return theme
+
+def install_themes():
+    db = get_db()
+    
     if not db.has_collection("_graphThemeStore"):
         db.create_collection("_graphThemeStore")
         print("Created collection: _graphThemeStore")
     
     theme_col = db.collection("_graphThemeStore")
     
-    # Target Graphs
-    target_graphs = ["OntologyGraph", "DataGraph", "KnowledgeGraph"]
+    print(f"\nInstalling Tailored Themes for database: {ARANGO_DATABASE}")
+    print("=" * 80)
     
+    # Load all themes into memory first to avoid re-reading files in the loop
+    themes_in_memory = []
     for theme_path in THEME_FILES:
         if not os.path.exists(theme_path):
             print(f"Error: Theme file not found: {theme_path}")
             continue
-
         with open(theme_path, 'r') as f:
-            base_theme = json.load(f)
-        
-        for g_id in target_graphs:
-            # 1. Install/Update the specific theme
-            theme = base_theme.copy()
-            theme["graphId"] = g_id
+            themes_in_memory.append(json.load(f))
             
-            # Add timestamps
+    for base_theme in themes_in_memory:
+        print(f"\nProcessing Theme: {base_theme.get('name')}")
+        print("-" * 40)
+        
+        for g_id in TARGET_GRAPHS:
+            # 1. Introspect graph schema
+            vertex_colls, edge_colls = get_graph_schema(db, g_id)
+            if vertex_colls is None:
+                print(f"  [SKIP] Graph '{g_id}' does not exist")
+                continue
+
+            # Special logic for OntologyGraph themes
+            if g_id == "OntologyGraph":
+                # Only install 'sentries_standard' for OntologyGraph, but rename it to 'Ontology'
+                if base_theme.get('name') != 'sentries_standard':
+                    print(f"  [SKIP] Theme '{base_theme.get('name')}' is irrelevant for OntologyGraph")
+                    continue
+                
+                theme = prune_theme(base_theme, vertex_colls, edge_colls)
+                theme["name"] = "Ontology"
+                theme["description"] = "Standard Ontology visual configuration"
+            else:
+                # Normal pruning for other graphs
+                theme = prune_theme(base_theme, vertex_colls, edge_colls)
+
+            theme["graphId"] = g_id
             now = datetime.utcnow().isoformat() + "Z"
             theme["createdAt"] = now
             theme["updatedAt"] = now
             
-            # Check if theme already exists
-            existing = list(theme_col.find({
-                "name": theme["name"],
-                "graphId": g_id
-            }))
-            
+            # 3. Install/Update Tailored Theme
+            existing = list(theme_col.find({"name": theme["name"], "graphId": g_id}))
             if existing:
-                doc_key = existing[0]["_key"]
-                theme_col.update({"_key": doc_key}, theme)
-                print(f"Updated theme '{theme['name']}' for graph '{g_id}'")
+                theme_col.update({"_key": existing[0]["_key"]}, theme)
+                print(f"  [Updated Theme] Graph: {g_id}, Name: {theme['name']} (Tailored: {len(theme.get('nodeConfigMap',{}))} nodes, {len(theme.get('edgeConfigMap',{}))} edges)")
             else:
                 theme_col.insert(theme)
-                print(f"Installed theme '{theme['name']}' for graph '{g_id}'")
+                print(f"  [Installed Theme] Graph: {g_id}, Name: {theme['name']} (Tailored: {len(theme.get('nodeConfigMap',{}))} nodes, {len(theme.get('edgeConfigMap',{}))} edges)")
+            
+            # 4. Install Tailored Canvas Actions
+            install_canvas_actions(db, g_id, vertex_colls, edge_colls)
 
-    print("\nVisualizer Theme Setup Complete.")
+    print("\n" + "="*80)
+    print("Tailored Theme & Canvas Action Installation Complete")
 
 if __name__ == "__main__":
     install_themes()

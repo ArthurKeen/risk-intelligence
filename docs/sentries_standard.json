@@ -105,6 +105,26 @@
             },
             "labelAttribute": "label"
         },
+        "leader_of": {
+            "lineStyle": {
+                "color": "#4299e1",
+                "thickness": 1.0
+            },
+            "arrowStyle": {
+                "targetArrowShape": "triangle"
+            },
+            "labelAttribute": "label"
+        },
+        "operates": {
+            "lineStyle": {
+                "color": "#4a5568",
+                "thickness": 0.8
+            },
+            "arrowStyle": {
+                "targetArrowShape": "triangle"
+            },
+            "labelAttribute": "label"
+        },
         "family_member_of": {
             "lineStyle": {
                 "color": "#805ad5",
