@@ -41,3 +41,12 @@ Implemented `scripts/install_dashboard.py` which registers professional analytic
 ## Verification Results
 
 The Knowledge Graph is now a interactive intelligence platform. All analytics are live in the ArangoDB "Queries" dashboard, and all core data/scripts are committed to Git.
+
+## Phase 4: Vetting Demonstration (Vetting Assessment)
+
+I have implemented a specialized demonstration phase to assess the transitive risk of entities by association:
+- **Synthetic Dataset**: Created `scripts/generate_test_data.py` to produce deterministic test cases.
+- **Transitive Risk**: Demonstrated inheritance of risk through multi-hop ownership, leadership, and family ties.
+- **Visual Distinction**: Configured visualizer rules to highlight synthetic nodes and edges (dashed lines).
+
+For a detailed breakdown of the scenarios and results, see [Vetting Demonstration Results](docs/vetting_demo.md).

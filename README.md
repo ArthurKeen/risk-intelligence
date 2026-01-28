@@ -47,10 +47,17 @@ python3 scripts/install_dashboard.py
 
 # 4. Calculate direct risk
 python3 scripts/calculate_direct_risk.py
+
+# 5. Run Vetting Demonstration (Optional)
+python3 scripts/generate_test_data.py
+python3 scripts/calculate_inferred_risk.py
 ```
 
 ## Usage
 Open the ArangoDB UI and navigate to **Graphs** -> **KnowledgeGraph**. Select the **sentries_risk_heatmap** theme to visualize threats. Use the **Saved Queries** tab to run the dynamic vetting tools.
+
+### Vetting Demonstration
+To see how association with sanctioned entities affects risk scores for "clean" entities, run the Vetting Demonstration scripts (Step 5 above). Synthetic entities will appear with a purple color or vial icon, and their relationships will be dashed lines. See [docs/vetting_demo.md](docs/vetting_demo.md) for full scenario details.
 
 ## License
 MIT

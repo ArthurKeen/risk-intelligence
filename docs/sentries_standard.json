@@ -12,7 +12,17 @@
             "hoverInfoAttributes": [
                 "label",
                 "party_id",
-                "riskScore"
+                "riskScore",
+                "dataSource"
+            ],
+            "rules": [
+                {
+                    "name": "Synthetic Entity",
+                    "condition": "dataSource == 'Synthetic'",
+                    "background": {
+                        "color": "#9f7aea"
+                    }
+                }
             ]
         },
         "Organization": {
@@ -24,7 +34,17 @@
             "hoverInfoAttributes": [
                 "label",
                 "party_id",
-                "riskScore"
+                "riskScore",
+                "dataSource"
+            ],
+            "rules": [
+                {
+                    "name": "Synthetic Entity",
+                    "condition": "dataSource == 'Synthetic'",
+                    "background": {
+                        "color": "#9f7aea"
+                    }
+                }
             ]
         },
         "Vessel": {
@@ -73,7 +93,18 @@
         },
         "ObjectProperty": {
             "background": {
-                "color": "#48bb78",
+                "color": "#d69e2e",
+                "iconName": "fa6-solid:link"
+            },
+            "labelAttribute": "label",
+            "hoverInfoAttributes": [
+                "label",
+                "_id"
+            ]
+        },
+        "DatatypeProperty": {
+            "background": {
+                "color": "#319795",
                 "iconName": "fa6-solid:link"
             },
             "labelAttribute": "label",
@@ -103,7 +134,16 @@
             "arrowStyle": {
                 "targetArrowShape": "triangle"
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "leader_of": {
             "lineStyle": {
@@ -113,7 +153,16 @@
             "arrowStyle": {
                 "targetArrowShape": "triangle"
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "operates": {
             "lineStyle": {
@@ -123,14 +172,32 @@
             "arrowStyle": {
                 "targetArrowShape": "triangle"
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "family_member_of": {
             "lineStyle": {
                 "color": "#805ad5",
                 "thickness": 1.0
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "subClassOf": {
             "lineStyle": {

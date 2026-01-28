@@ -12,23 +12,30 @@
             "rules": [
                 {
                     "name": "High Risk",
-                    "condition": "riskScore >= 0.8",
+                    "condition": "inferredRisk >= 0.8",
                     "background": {
                         "color": "#e53e3e"
                     }
                 },
                 {
+                    "name": "Low Risk",
+                    "condition": "inferredRisk < 0.3",
+                    "background": {
+                        "color": "#38a169"
+                    }
+                },
+                {
                     "name": "Medium Risk",
-                    "condition": "riskScore >= 0.3 && riskScore < 0.8",
+                    "condition": "inferredRisk < 0.8",
                     "background": {
                         "color": "#ecc94b"
                     }
                 },
                 {
-                    "name": "Low Risk",
-                    "condition": "riskScore < 0.3",
+                    "name": "Synthetic Entity",
+                    "condition": "dataSource == 'Synthetic'",
                     "background": {
-                        "color": "#38a169"
+                        "iconName": "fa6-solid:vial"
                     }
                 }
             ]
@@ -42,23 +49,30 @@
             "rules": [
                 {
                     "name": "High Risk",
-                    "condition": "riskScore >= 0.8",
+                    "condition": "inferredRisk >= 0.8",
                     "background": {
                         "color": "#e53e3e"
                     }
                 },
                 {
+                    "name": "Low Risk",
+                    "condition": "inferredRisk < 0.3",
+                    "background": {
+                        "color": "#38a169"
+                    }
+                },
+                {
                     "name": "Medium Risk",
-                    "condition": "riskScore >= 0.3 && riskScore < 0.8",
+                    "condition": "inferredRisk < 0.8",
                     "background": {
                         "color": "#ecc94b"
                     }
                 },
                 {
-                    "name": "Low Risk",
-                    "condition": "riskScore < 0.3",
+                    "name": "Synthetic Entity",
+                    "condition": "dataSource == 'Synthetic'",
                     "background": {
-                        "color": "#38a169"
+                        "iconName": "fa6-solid:vial"
                     }
                 }
             ]
@@ -112,28 +126,64 @@
                 "color": "#d69e2e",
                 "thickness": 1.2
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "leader_of": {
             "lineStyle": {
                 "color": "#4299e1",
                 "thickness": 1.0
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "operates": {
             "lineStyle": {
                 "color": "#4a5568",
                 "thickness": 0.8
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "family_member_of": {
             "lineStyle": {
                 "color": "#805ad5",
                 "thickness": 1.0
             },
-            "labelAttribute": "label"
+            "labelAttribute": "label",
+            "rules": [
+                {
+                    "name": "Synthetic Relationship",
+                    "condition": "dataSource == 'Synthetic'",
+                    "lineStyle": {
+                        "lineType": "dashed"
+                    }
+                }
+            ]
         },
         "subClassOf": {
             "labelAttribute": "label"

@@ -57,8 +57,12 @@ def install_canvas_actions(db, graph_name, vertex_colls, edge_colls):
     vp_act_col = db.collection("_viewpointActions")
 
     # 1. Ensure Default Viewpoint exists for the graph
-    vp_name = f"Default - {graph_name}"
-    existing_vp = list(vp_col.find({"graphId": graph_name, "name": vp_name}))
+    # Try "Default" first (this is what the UI uses)
+    existing_vp = list(vp_col.find({"graphId": graph_name, "name": "Default"}))
+    if not existing_vp:
+        # Fallback to "Default - GraphName"
+        vp_name = f"Default - {graph_name}"
+        existing_vp = list(vp_col.find({"graphId": graph_name, "name": vp_name}))
     if not existing_vp:
         # Fallback to any viewpoint for this graph
         existing_vp = list(vp_col.find({"graphId": graph_name}))
@@ -67,16 +71,18 @@ def install_canvas_actions(db, graph_name, vertex_colls, edge_colls):
         now = datetime.utcnow().isoformat() + "Z"
         vp_doc = {
             "graphId": graph_name,
-            "name": vp_name,
+            "name": "Default",  # Use "Default" not "Default - GraphName"
             "description": f"Default viewpoint for {graph_name}",
             "createdAt": now,
             "updatedAt": now
         }
         res = vp_col.insert(vp_doc)
         vp_id = res["_id"]
-        print(f"    Created viewpoint: {vp_name}")
+        print(f"    Created viewpoint: Default")
     else:
         vp_id = existing_vp[0]["_id"]
+        vp_name_used = existing_vp[0].get("name", "Unknown")
+        print(f"    Using viewpoint: {vp_name_used}")
 
     # 2. Create Canvas Actions only for vertex collections in this graph
     edge_list_str = ", ".join(edge_colls)
@@ -93,15 +99,15 @@ def install_canvas_actions(db, graph_name, vertex_colls, edge_colls):
     RETURN p"""
 
         now = datetime.utcnow().isoformat() + "Z"
+        # Match working structure: no 'title' or 'query' fields, only 'queryText'
+        # bindVariables.nodes should be empty string, not array
         action_doc = {
-            "title": action_title,
             "name": action_title,
             "description": f"Expand related entities for {v_coll}",
-            "query": query,
             "queryText": query,
             "graphId": graph_name,
             "bindVariables": {
-                "nodes": []
+                "nodes": ""
             },
             "updatedAt": now
         }
@@ -110,7 +116,10 @@ def install_canvas_actions(db, graph_name, vertex_colls, edge_colls):
         existing_action = list(canvas_col.find({"name": action_title, "graphId": graph_name}))
         if existing_action:
             action_id = existing_action[0]["_id"]
-            canvas_col.update({"_key": existing_action[0]["_key"]}, action_doc)
+            # Use replace() to ensure full document replacement (removes old fields like 'query' and 'title')
+            action_doc["_key"] = existing_action[0]["_key"]
+            action_doc["_id"] = existing_action[0]["_id"]
+            canvas_col.replace(action_doc)
         else:
             action_doc["createdAt"] = now
             res = canvas_col.insert(action_doc)
@@ -204,10 +213,55 @@ def install_themes():
             theme["createdAt"] = now
             theme["updatedAt"] = now
             
+            # Set isDefault explicitly: only Default themes or Ontology theme should be default
+            # For OntologyGraph, the "Ontology" theme is the default (renamed from sentries_standard)
+            # For other graphs, only "Default" theme should be default
+            if g_id == "OntologyGraph" and theme["name"] == "Ontology":
+                theme["isDefault"] = True
+            elif theme["name"] == "Default":
+                theme["isDefault"] = True
+            else:
+                theme["isDefault"] = False
+            
             # 3. Install/Update Tailored Theme
+            # Ensure required fields exist to match working database structure
+            # This ensures compatibility with ArangoDB Visualizer expectations
+            
+            # For node configs: ensure rules and hoverInfoAttributes exist
+            if "nodeConfigMap" in theme:
+                for node_type, node_config in theme["nodeConfigMap"].items():
+                    if "rules" not in node_config:
+                        node_config["rules"] = []
+                    if "hoverInfoAttributes" not in node_config:
+                        node_config["hoverInfoAttributes"] = []
+            
+            # For edge configs: ensure all optional but recommended fields exist
+            # The working 'test' theme shows these fields are needed for proper rendering
+            if "edgeConfigMap" in theme:
+                for edge_type, edge_config in theme["edgeConfigMap"].items():
+                    if "rules" not in edge_config:
+                        edge_config["rules"] = []
+                    if "hoverInfoAttributes" not in edge_config:
+                        edge_config["hoverInfoAttributes"] = []
+                    # Add arrowStyle if missing (needed for proper edge rendering)
+                    if "arrowStyle" not in edge_config:
+                        edge_config["arrowStyle"] = {
+                            "sourceArrowShape": "none",
+                            "targetArrowShape": "triangle"
+                        }
+                    # Add labelStyle if missing (for edge label styling)
+                    if "labelStyle" not in edge_config:
+                        edge_config["labelStyle"] = {
+                            "color": "#1d2531"
+                        }
+            
             existing = list(theme_col.find({"name": theme["name"], "graphId": g_id}))
             if existing:
-                theme_col.update({"_key": existing[0]["_key"]}, theme)
+                # Use replace() instead of update() to ensure full document replacement
+                # This ensures all fields from source are properly stored, including rules
+                theme["_key"] = existing[0]["_key"]
+                theme["_id"] = existing[0]["_id"]
+                theme_col.replace(theme)
                 print(f"  [Updated Theme] Graph: {g_id}, Name: {theme['name']} (Tailored: {len(theme.get('nodeConfigMap',{}))} nodes, {len(theme.get('edgeConfigMap',{}))} edges)")
             else:
                 theme_col.insert(theme)
