@@ -1,4 +1,4 @@
-# Sentries: Risk Management Knowledge Graph
+# Sentries: Risk Intelligence Knowledge Graph
 
 Sentries is an advanced graph intelligence platform for advanced demonstration of Arango AI that leverages the OFAC SDN dataset to identify and propagate transitive risk through complex ownership, leadership, and familial networks.
 
@@ -21,8 +21,8 @@ Sentries is an advanced graph intelligence platform for advanced demonstration o
 
 ### 2. Setup
 ```bash
-git clone https://github.com/ArthurKeen/risk-management.git
-cd risk-management
+git clone https://github.com/ArthurKeen/risk-intelligence.git
+cd risk-intelligence
 pip install -r requirements.txt
 ```
 
