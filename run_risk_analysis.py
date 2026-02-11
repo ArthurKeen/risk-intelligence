@@ -27,6 +27,7 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
+from html import escape
 from typing import List, Optional, Any
 
 
@@ -114,6 +115,67 @@ def _apply_env_mapping() -> None:
     api_key_id = os.getenv("ARANGO_GRAPH_API_KEY_ID")
     if (not mode or mode in ("amp", "managed", "arangograph")) and not api_key_id:
         os.environ["GAE_DEPLOYMENT_MODE"] = "self_managed"
+
+def _markdown_to_html(md: str) -> str:
+    """
+    Convert Markdown to HTML for report output.
+
+    We intentionally render HTML from the Markdown output (not the platform's HTML formatter)
+    because some platform formatters return Markdown wrapped in <pre>, which is not a readable
+    HTML report.
+    """
+    try:
+        import mistune  # type: ignore
+
+        # Mistune v2/v3 supports plugins; tables are important for these reports.
+        renderer = mistune.HTMLRenderer()
+        markdown = mistune.create_markdown(
+            renderer=renderer,
+            plugins=[
+                "strikethrough",
+                "table",
+                "task_lists",
+            ],
+        )
+        return markdown(md)
+    except Exception:
+        try:
+            import marko  # type: ignore
+
+            return marko.convert(md)
+        except Exception:
+            # Last resort: safe preformatted text so the HTML file is still valid.
+            return f"<pre>{escape(md)}</pre>"
+
+
+def _wrap_html_document(*, title: str, body_html: str) -> str:
+    safe_title = escape(title or "Risk Analysis Report")
+    return (
+        "<!DOCTYPE html>\n"
+        "<html>\n"
+        "<head>\n"
+        f"  <meta charset=\"utf-8\" />\n"
+        f"  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
+        f"  <title>{safe_title}</title>\n"
+        "  <style>\n"
+        "    :root { color-scheme: light dark; }\n"
+        "    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 980px; margin: 40px auto; padding: 0 20px; line-height: 1.55; }\n"
+        "    h1, h2, h3 { line-height: 1.25; }\n"
+        "    h2 { border-bottom: 1px solid #ddd; padding-bottom: 6px; }\n"
+        "    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace; }\n"
+        "    pre { padding: 12px; overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; }\n"
+        "    table { border-collapse: collapse; width: 100%; margin: 12px 0; }\n"
+        "    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }\n"
+        "    th { background: #f5f5f5; }\n"
+        "    blockquote { border-left: 4px solid #ddd; padding-left: 12px; margin-left: 0; color: #555; }\n"
+        "    a { color: inherit; }\n"
+        "  </style>\n"
+        "</head>\n"
+        "<body>\n"
+        f"{body_html}\n"
+        "</body>\n"
+        "</html>\n"
+    )
 
 
 async def main():
@@ -339,7 +401,12 @@ async def main():
             print(f"  ✗ Markdown: {e}")
         html_path = output_dir / f"{report_name}.html"
         try:
-            html_content = report_generator.format_report(report, ReportFormat.HTML)
+            # Render HTML from the Markdown content for consistent, readable output.
+            # If Markdown generation failed, fall back to formatting directly from report.
+            if "md_content" not in locals() or not isinstance(md_content, str) or not md_content.strip():
+                md_content = report_generator.format_report(report, ReportFormat.MARKDOWN)
+            body_html = _markdown_to_html(md_content)
+            html_content = _wrap_html_document(title=getattr(report, "title", report_name), body_html=body_html)
             html_path.write_text(html_content)
             print(f"  ✓ {html_path.name}")
         except Exception as e:
