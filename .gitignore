@@ -43,3 +43,6 @@ ENV/
 data/
 .env
 data/sdn_advanced.zip
+
+# Analysis outputs (generated)
+risk_analysis_output/
