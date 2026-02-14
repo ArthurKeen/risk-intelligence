@@ -27,7 +27,6 @@ import os
 import sys
 from datetime import datetime
 from pathlib import Path
-from html import escape
 from typing import List, Optional, Any
 
 
@@ -56,6 +55,11 @@ def _require_platform():
             ExecutionStatus,
         )
         from graph_analytics_ai.catalog.storage import ArangoDBStorage  # type: ignore
+        from graph_analytics_ai.ai.execution.models import (  # type: ignore
+            AnalysisJob,
+            ExecutionResult,
+            ExecutionStatus as JobExecutionStatus,
+        )
 
         return (
             create_llm_provider,
@@ -76,6 +80,9 @@ def _require_platform():
             ExecutionFilter,
             ExecutionStatus,
             ArangoDBStorage,
+            AnalysisJob,
+            ExecutionResult,
+            JobExecutionStatus,
         )
     except ImportError as e:
         print("ERROR: graph-analytics-ai-platform is not available.")
@@ -116,67 +123,6 @@ def _apply_env_mapping() -> None:
     if (not mode or mode in ("amp", "managed", "arangograph")) and not api_key_id:
         os.environ["GAE_DEPLOYMENT_MODE"] = "self_managed"
 
-def _markdown_to_html(md: str) -> str:
-    """
-    Convert Markdown to HTML for report output.
-
-    We intentionally render HTML from the Markdown output (not the platform's HTML formatter)
-    because some platform formatters return Markdown wrapped in <pre>, which is not a readable
-    HTML report.
-    """
-    try:
-        import mistune  # type: ignore
-
-        # Mistune v2/v3 supports plugins; tables are important for these reports.
-        renderer = mistune.HTMLRenderer()
-        markdown = mistune.create_markdown(
-            renderer=renderer,
-            plugins=[
-                "strikethrough",
-                "table",
-                "task_lists",
-            ],
-        )
-        return markdown(md)
-    except Exception:
-        try:
-            import marko  # type: ignore
-
-            return marko.convert(md)
-        except Exception:
-            # Last resort: safe preformatted text so the HTML file is still valid.
-            return f"<pre>{escape(md)}</pre>"
-
-
-def _wrap_html_document(*, title: str, body_html: str) -> str:
-    safe_title = escape(title or "Risk Analysis Report")
-    return (
-        "<!DOCTYPE html>\n"
-        "<html>\n"
-        "<head>\n"
-        f"  <meta charset=\"utf-8\" />\n"
-        f"  <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\" />\n"
-        f"  <title>{safe_title}</title>\n"
-        "  <style>\n"
-        "    :root { color-scheme: light dark; }\n"
-        "    body { font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Helvetica, Arial, sans-serif; max-width: 980px; margin: 40px auto; padding: 0 20px; line-height: 1.55; }\n"
-        "    h1, h2, h3 { line-height: 1.25; }\n"
-        "    h2 { border-bottom: 1px solid #ddd; padding-bottom: 6px; }\n"
-        "    code, pre { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, \"Liberation Mono\", \"Courier New\", monospace; }\n"
-        "    pre { padding: 12px; overflow-x: auto; border: 1px solid #ddd; border-radius: 8px; }\n"
-        "    table { border-collapse: collapse; width: 100%; margin: 12px 0; }\n"
-        "    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; vertical-align: top; }\n"
-        "    th { background: #f5f5f5; }\n"
-        "    blockquote { border-left: 4px solid #ddd; padding-left: 12px; margin-left: 0; color: #555; }\n"
-        "    a { color: inherit; }\n"
-        "  </style>\n"
-        "</head>\n"
-        "<body>\n"
-        f"{body_html}\n"
-        "</body>\n"
-        "</html>\n"
-    )
-
 
 async def main():
     """Run risk intelligence graph analysis workflow."""
@@ -207,6 +153,9 @@ async def main():
         ExecutionFilter,
         ExecutionStatus,
         ArangoDBStorage,
+        AnalysisJob,
+        ExecutionResult,
+        JobExecutionStatus,
     ) = _require_platform()
 
     max_exec_raw = (os.getenv("RISK_ANALYSIS_MAX_EXECUTIONS") or "").strip()
@@ -221,6 +170,14 @@ async def main():
     output_dir = Path("risk_analysis_output")
     output_dir.mkdir(exist_ok=True)
     print(f"✓ Output directory: {output_dir.absolute()}")
+
+    # Reports-only mode: regenerate HTML/MD from existing result collections (no GRAL needed).
+    reports_only = (os.getenv("RISK_ANALYSIS_REPORTS_ONLY") or "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+        "on",
+    )
 
     GRAPH_NAME = os.getenv("RISK_GRAPH_NAME") or "KnowledgeGraph"
     INDUSTRY = "fintech"  # Closest built-in for risk/sanctions/PEP-AML
@@ -334,6 +291,103 @@ async def main():
         print("\nCheck: .env, ArangoDB connection, pip install -e ~/code/graph-analytics-ai-platform")
         sys.exit(1)
 
+    if reports_only:
+        print()
+        print("[2/5] Reports-only mode ENABLED")
+        print("      Regenerating reports from existing result collections (no GRAL execution)")
+        print()
+
+        def _infer_algorithm(sample: list[dict]) -> str:
+            for d in sample:
+                if isinstance(d, dict) and "rank" in d:
+                    return "pagerank"
+                if isinstance(d, dict) and "component" in d:
+                    return "wcc"
+                if isinstance(d, dict) and ("community" in d or "label" in d):
+                    return "label_propagation"
+            return "wcc"
+
+        def _fetch_results(collection: str, limit: int) -> list[dict]:
+            cursor = db.aql.execute(
+                "FOR d IN @@col LIMIT @limit RETURN d",
+                bind_vars={"@col": collection, "limit": limit},
+            )
+            return list(cursor)
+
+        report_collections = [
+            "uc_001_results",
+            "uc_s01_results",
+            "uc_s02_results",
+            "uc_s03_results",
+            "uc_s04_results",
+            "uc_s05_results",
+            "uc_r01_results",
+        ]
+        limit = int(os.getenv("RISK_ANALYSIS_REPORTS_LIMIT", "1000") or "1000")
+
+        existing = []
+        for c in report_collections:
+            try:
+                if db.has_collection(c):
+                    existing.append(c)
+            except Exception:
+                continue
+
+        if not existing:
+            print("✗ No known result collections found to report on.")
+            sys.exit(1)
+
+        print(f"✓ Found {len(existing)} result collections:")
+        for c in existing:
+            print(f"    - {c}")
+        print()
+
+        reports = []
+        for idx, c in enumerate(existing, 1):
+            results = _fetch_results(c, limit)
+            algo = _infer_algorithm(results)
+
+            job = AnalysisJob(
+                job_id=f"regenerated-{c}",
+                template_name=c,
+                algorithm=algo,
+                status=JobExecutionStatus.COMPLETED,
+                submitted_at=datetime.now(),
+                started_at=datetime.now(),
+                completed_at=datetime.now(),
+                result_collection=c,
+                result_count=len(results),
+                execution_time_seconds=0.0,
+            )
+            exec_result = ExecutionResult(job=job, success=True, results=results)
+            reports.append(report_generator.generate_report(exec_result))
+
+        print("[3/5] Processing results...")
+        print(f"✓ Generated {len(reports)} reports")
+        total_insights = sum(len(getattr(r, "insights", []) or []) for r in reports)
+        print(f"✓ Total insights: {total_insights}")
+        print()
+
+        print("[4/5] Catalog disabled, skipping")
+        print()
+
+        print("[5/5] Saving reports...")
+        for i, report in enumerate(reports, 1):
+            report_name = f"risk_report_{i}"
+            md_path = output_dir / f"{report_name}.md"
+            html_path = output_dir / f"{report_name}.html"
+            md_path.write_text(report_generator.format_report(report, ReportFormat.MARKDOWN))
+            html_path.write_text(report_generator.format_report(report, ReportFormat.HTML))
+            print(f"  ✓ {md_path.name}")
+            print(f"  ✓ {html_path.name}")
+        print()
+
+        print("=" * 70)
+        print(" " * 25 + "✓ REPORTS REGENERATED")
+        print("=" * 70)
+        print(f"📁 Reports: {output_dir.absolute()}")
+        return
+
     print()
     print("[2/5] Running agentic workflow...")
     print("      Schema analysis → Requirements → Use cases → Templates → Execution → Reports")
@@ -401,12 +455,7 @@ async def main():
             print(f"  ✗ Markdown: {e}")
         html_path = output_dir / f"{report_name}.html"
         try:
-            # Render HTML from the Markdown content for consistent, readable output.
-            # If Markdown generation failed, fall back to formatting directly from report.
-            if "md_content" not in locals() or not isinstance(md_content, str) or not md_content.strip():
-                md_content = report_generator.format_report(report, ReportFormat.MARKDOWN)
-            body_html = _markdown_to_html(md_content)
-            html_content = _wrap_html_document(title=getattr(report, "title", report_name), body_html=body_html)
+            html_content = report_generator.format_report(report, ReportFormat.HTML)
             html_path.write_text(html_content)
             print(f"  ✓ {html_path.name}")
         except Exception as e:

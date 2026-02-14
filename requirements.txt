@@ -3,4 +3,4 @@ arango-rdf
 rdflib
 lxml
 python-dotenv
-mistune
+plotly
