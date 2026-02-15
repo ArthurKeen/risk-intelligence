@@ -67,7 +67,7 @@ Using **ArangoRDF**, the OWL ontology will define the physical Property Graph:
 
 ### 4.2 Graph Algorithms
 
-Integration with the `graph-analytics-ai-platform` to perform:
+Integration with the `agentic-graph-analytics` to perform:
 
 * **Centrality:** Identifying "Key Influencers" or "Shadow Owners" who control many entities but appear in fewer documents.
 * **Community Detection:** Identifying "Sanction-Evasion Cells" or clusters of highly interconnected high-risk entities.

@@ -3,14 +3,14 @@
 Risk Intelligence Graph Analysis
 
 Runs the agentic graph analytics workflow for risk management / sanctions screening.
-Uses the graph-analytics-ai-platform with fintech-aligned patterns.
+Uses the agentic-graph-analytics library with fintech-aligned patterns.
 Same cluster/GAE config as fraud-intelligence for consistency.
 
 Usage:
     python run_risk_analysis.py
 
 Requirements:
-    - graph-analytics-ai-platform installed (pip install -e ~/code/graph-analytics-ai-platform)
+    - agentic-graph-analytics installed (pip install -e ~/code/agentic-graph-analytics)
     - .env file with ArangoDB credentials and LLM API keys
     - Graph data loaded in ArangoDB (risk-management database)
 
@@ -85,8 +85,8 @@ def _require_platform():
             JobExecutionStatus,
         )
     except ImportError as e:
-        print("ERROR: graph-analytics-ai-platform is not available.")
-        print("\nFix: pip install -e ~/code/graph-analytics-ai-platform")
+        print("ERROR: agentic-graph-analytics is not available.")
+        print("\nFix: pip install -e ~/code/agentic-graph-analytics")
         raise SystemExit(1) from e
 
 
@@ -288,7 +288,7 @@ async def main():
         print("✓ Initialized agents")
     except Exception as e:
         print(f"✗ Failed to initialize: {e}")
-        print("\nCheck: .env, ArangoDB connection, pip install -e ~/code/graph-analytics-ai-platform")
+        print("\nCheck: .env, ArangoDB connection, pip install -e ~/code/agentic-graph-analytics")
         sys.exit(1)
 
     if reports_only:
