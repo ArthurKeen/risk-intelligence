@@ -38,6 +38,7 @@ ENV/
 .vscode/
 *.swp
 *.swo
+.cursor/
 
 # Project specific
 data/
