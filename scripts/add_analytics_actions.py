@@ -24,9 +24,9 @@ def add_analytics_actions():
     for coll in ["_canvasActions", "_viewpoints", "_viewpointActions"]:
         if not db.has_collection(coll):
             if coll == "_viewpointActions":
-                db.create_collection(coll, edge=True)
+                db.create_collection(coll, edge=True, system=True)
             else:
-                db.create_collection(coll)
+                db.create_collection(coll, system=True)
     
     canvas_col = db.collection("_canvasActions")
     vp_col = db.collection("_viewpoints")

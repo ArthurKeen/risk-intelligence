@@ -47,10 +47,10 @@ def install_canvas_actions(db, graph_name, vertex_colls, edge_colls):
     # Ensure necessary collections exist
     for coll in ["_canvasActions", "_viewpoints"]:
         if not db.has_collection(coll):
-            db.create_collection(coll)
+            db.create_collection(coll, system=True)
     
     if not db.has_collection("_viewpointActions"):
-        db.create_collection("_viewpointActions", edge=True)
+        db.create_collection("_viewpointActions", edge=True, system=True)
 
     canvas_col = db.collection("_canvasActions")
     vp_col = db.collection("_viewpoints")
@@ -166,7 +166,7 @@ def install_themes():
     db = get_db()
     
     if not db.has_collection("_graphThemeStore"):
-        db.create_collection("_graphThemeStore")
+        db.create_collection("_graphThemeStore", system=True)
         print("Created collection: _graphThemeStore")
     
     theme_col = db.collection("_graphThemeStore")

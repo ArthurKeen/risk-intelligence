@@ -71,7 +71,7 @@ def install_dashboard():
     db = client.db(ARANGO_DATABASE, username=ARANGO_USERNAME, password=ARANGO_PASSWORD)
     
     if not db.has_collection("_editor_saved_queries"):
-        db.create_collection("_editor_saved_queries")
+        db.create_collection("_editor_saved_queries", system=True)
         
     query_col = db.collection("_editor_saved_queries")
     
