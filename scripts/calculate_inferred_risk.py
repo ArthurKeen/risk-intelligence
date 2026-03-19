@@ -67,6 +67,34 @@ def run_propagation_iteration(db, colls):
             UPDATE p1 WITH { inferredRisk: nr } IN Person
         """)
 
+    # Pass 4: Operates (bidirectional, weight 0.9)
+    # Risk flows both ways: a high-risk operator taints the vessel/asset and vice-versa.
+    if db.has_collection('operates'):
+        for c in colls:
+            if db.has_collection(c):
+                # operator → operated entity
+                db.aql.execute(f"""
+                    FOR e IN operates
+                    FILTER IS_SAME_COLLECTION('{c}', e._from)
+                    LET op = DOCUMENT(e._from)
+                    FILTER op != null AND (op.inferredRisk || 0) > 0
+                    LET nr = op.inferredRisk * 0.9
+                    LET ent = DOCUMENT(e._to)
+                    FILTER ent != null AND nr > (ent.inferredRisk || 0)
+                    UPDATE ent WITH {{ inferredRisk: nr }} IN {c}
+                """)
+                # operated entity → operator
+                db.aql.execute(f"""
+                    FOR e IN operates
+                    FILTER IS_SAME_COLLECTION('{c}', e._to)
+                    LET ent = DOCUMENT(e._to)
+                    FILTER ent != null AND (ent.inferredRisk || 0) > 0
+                    LET nr = ent.inferredRisk * 0.9
+                    LET op = DOCUMENT(e._from)
+                    FILTER op != null AND nr > (op.inferredRisk || 0)
+                    UPDATE op WITH {{ inferredRisk: nr }} IN {c}
+                """)
+
 if __name__ == "__main__":
     load_env()
     endpoint = os.environ.get('ARANGO_ENDPOINT') or os.environ.get('ARANGO_URL')
