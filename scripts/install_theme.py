@@ -22,6 +22,12 @@ THEME_FILES = [
 
 TARGET_GRAPHS = ["OntologyGraph", "DataGraph", "KnowledgeGraph"]
 
+# Vertex collections we never want to show in Visualizer themes/actions.
+# These are typically RDF-import artifacts and not user-facing concepts.
+EXCLUDED_VERTEX_COLLECTIONS_BY_GRAPH = {
+    "OntologyGraph": {"OntologyGraph_UnknownResource"},
+}
+
 def get_db():
     if not ARANGO_ENDPOINT or not ARANGO_PASSWORD:
         print("Error: ARANGO_ENDPOINT or ARANGO_PASSWORD not set.")
@@ -37,6 +43,7 @@ def get_graph_schema(db, graph_name):
     
     graph = db.graph(graph_name)
     vertex_colls = set(graph.vertex_collections())
+    vertex_colls -= EXCLUDED_VERTEX_COLLECTIONS_BY_GRAPH.get(graph_name, set())
     edge_definitions = graph.edge_definitions()
     edge_colls = set(ed['edge_collection'] for ed in edge_definitions)
     
@@ -55,6 +62,30 @@ def install_canvas_actions(db, graph_name, vertex_colls, edge_colls):
     canvas_col = db.collection("_canvasActions")
     vp_col = db.collection("_viewpoints")
     vp_act_col = db.collection("_viewpointActions")
+
+    # Remove obsolete "[Collection] Expand Relationships" actions if graph schema changed
+    expected_action_names = {f"[{v}] Expand Relationships" for v in vertex_colls}
+    existing_actions = list(canvas_col.find({"graphId": graph_name}))
+    removed = 0
+    for a in existing_actions:
+        n = a.get("name") or ""
+        if n.startswith("[") and n.endswith("] Expand Relationships"):
+            if n not in expected_action_names:
+                action_id = a.get("_id")
+                if action_id:
+                    # remove viewpoint links first
+                    for edge in list(vp_act_col.find({"_to": action_id})):
+                        try:
+                            vp_act_col.delete(edge)
+                        except Exception:
+                            pass
+                try:
+                    canvas_col.delete(a)
+                except Exception:
+                    pass
+                removed += 1
+    if removed:
+        print(f"    Removed {removed} obsolete canvas action(s) for {graph_name}")
 
     # 1. Ensure Default Viewpoint exists for the graph
     # Try "Default" first (this is what the UI uses)

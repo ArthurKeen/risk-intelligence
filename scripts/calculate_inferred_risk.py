@@ -69,10 +69,10 @@ def run_propagation_iteration(db, colls):
 
 if __name__ == "__main__":
     load_env()
-    endpoint = os.environ.get('ARANGO_ENDPOINT')
-    username = os.environ.get('ARANGO_USERNAME')
+    endpoint = os.environ.get('ARANGO_ENDPOINT') or os.environ.get('ARANGO_URL')
+    username = os.environ.get('ARANGO_USERNAME') or os.environ.get('ARANGO_USER', 'root')
     password = os.environ.get('ARANGO_PASSWORD')
-    database = os.environ.get('ARANGO_DATABASE')
+    database = os.environ.get('ARANGO_DATABASE', 'risk-intelligence')
 
     client = ArangoClient(hosts=endpoint)
     db = client.db(database, username=username, password=password)
