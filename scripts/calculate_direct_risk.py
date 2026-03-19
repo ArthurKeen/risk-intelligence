@@ -9,7 +9,7 @@ load_dotenv()
 ARANGO_ENDPOINT = os.getenv("ARANGO_ENDPOINT")
 ARANGO_USERNAME = os.getenv("ARANGO_USERNAME", "root")
 ARANGO_PASSWORD = os.getenv("ARANGO_PASSWORD")
-ARANGO_DATABASE = os.getenv("ARANGO_DATABASE", "risk-management")
+ARANGO_DATABASE = os.getenv("ARANGO_DATABASE", "risk-intelligence")
 
 # File paths
 XML_PATH = "data/SDN_ADVANCED.XML"
@@ -70,6 +70,9 @@ def calculate_direct_risk():
         existing_keys = set(cursor)
         
         for pid, score in risk_map.items():
+            # Never overwrite riskScore on synthetic parties — they self-declare it at load time
+            if pid.startswith("SYN-"):
+                continue
             if pid in existing_keys:
                 batch.append({
                     "_key": pid,

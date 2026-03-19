@@ -1,0 +1,14 @@
+party_id,primary_name,party_type,risk_score,scenario,notes
+SYN-A01,Carlos Medina Ruiz,4,1.0,A,Synthetic SDN-listed individual - anchor of Scenario A
+SYN-A02,Ruiz International Holdings S.A.,3,0.0,A,Org controlled by SYN-A01 via leader_of
+SYN-A03,Medellin Trade and Commerce LLC,3,0.0,A,Subsidiary owned by SYN-A02
+SYN-A04,Sofia Medina Torres,4,0.0,A,Spouse of SYN-A01
+SYN-A05,Diego Medina Torres,4,0.0,A,Child of SYN-A04
+SYN-A06,MV Sierra Madre,1,0.0,A,Vessel - isolated clean asset
+SYN-B01,Hassan Al-Qasim,4,0.0,B,Associate - family connection to Carlos Medina Ruiz (SYN-A01)
+SYN-B02,Al-Qasim Trading Group,3,0.0,B,Org controlled by SYN-B01 via leader_of
+SYN-B03,Levant Commerce Solutions Ltd,3,0.0,B,Subsidiary owned by SYN-B02
+SYN-B04,Fatima Al-Qasim,4,0.0,B,Second-degree family contact
+SYN-C01,Meridian Global Logistics GmbH,3,0.0,C,Clean counterparty - no risk connections
+SYN-C02,James R. Hartwell,4,0.0,C,Clean executive - no risk connections
+SYN-C03,MV Pacific Star,1,0.0,C,Clean vessel - no risk connections

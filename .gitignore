@@ -40,10 +40,13 @@ ENV/
 *.swo
 .cursor/
 
-# Project specific
-data/
+# Project specific - ignore real/sensitive data, track fixtures
+data/*.xml
+data/*.zip
+data/*.csv.gz
+data/parties.csv
+data/relationships.csv
 .env
-data/sdn_advanced.zip
 
 # Analysis outputs (generated)
 risk_analysis_output/
