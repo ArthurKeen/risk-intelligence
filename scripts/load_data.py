@@ -51,26 +51,27 @@ def load_data():
     
     # Initialize ArangoRDF
     adp = ArangoRDF(db)
-    
-    from rdflib import Graph
-    
-    print(f"Loading ontology from {ONTOLOGY_PATH}...")
-    # Load ontology into a rdflib Graph
-    g = Graph()
-    g.parse(ONTOLOGY_PATH, format="xml")
-    
-    # Load ontology into ArangoDB to set up collections
-    adp.rdf_to_arangodb_by_pgt(
-        name="OntologyGraph",
-        rdf_graph=g
-    )
-    
+
+    # The ontology is static — only load it when the graph doesn't yet exist.
+    # arango_rdf always calls create_edge_definition unconditionally, which raises
+    # ERR 1921 if the graph already has those edge definitions (i.e. on re-runs).
+    if db.has_graph("OntologyGraph"):
+        print(f"OntologyGraph already exists — skipping ontology load.")
+    else:
+        from rdflib import Graph as RDFGraph
+
+        print(f"Loading ontology from {ONTOLOGY_PATH}...")
+        rdf_g = RDFGraph()
+        rdf_g.parse(ONTOLOGY_PATH, format="xml")
+        adp.rdf_to_arangodb_by_pgt(name="OntologyGraph", rdf_graph=rdf_g)
+        print("Ontology loaded.")
+
     # Delete the redundant SentriesRisk graph if it was created previously
     if db.has_graph("SentriesRisk"):
         db.delete_graph("SentriesRisk")
         print("Deleted redundant SentriesRisk graph.")
-    
-    print("Ontology loaded. Now importing CSV data...")
+
+    print("Now importing CSV data...")
     
     # Map CSV SubType IDs to ArangoDB collections
     collection_map = {
@@ -251,33 +252,42 @@ def load_data():
         {"edge_collection": "subClassOf", "from_vertex_collections": ont_vertices, "to_vertex_collections": ont_vertices},
         {"edge_collection": "type", "from_vertex_collections": all_vertices, "to_vertex_collections": ont_vertices},
     ]
+    def _upsert_edge_def(g, edge_collection, from_vertex_collections, to_vertex_collections):
+        """Replace edge definition if it exists, create it otherwise.
+
+        Uses try/except rather than a pre-check because python-arango's
+        edge_definitions() may return raw ArangoDB keys ('collection') instead
+        of the normalised keys ('edge_collection') depending on version, causing
+        the pre-check to silently return False and fall through to create —
+        which then raises ERR 1921 when the definition already exists.
+        """
+        try:
+            g.replace_edge_definition(edge_collection, from_vertex_collections, to_vertex_collections)
+        except Exception:
+            try:
+                g.create_edge_definition(edge_collection, from_vertex_collections, to_vertex_collections)
+            except Exception as e2:
+                print(f"  [WARN] Could not upsert edge definition '{edge_collection}': {e2}")
+
     if not db.has_graph("OntologyGraph"):
         db.create_graph("OntologyGraph", edge_definitions=ontology_edges_ontology_graph)
     else:
         g = db.graph("OntologyGraph")
         for ed in ontology_edges_ontology_graph:
-            if any(e['edge_collection'] == ed['edge_collection'] for e in g.edge_definitions()):
-                g.replace_edge_definition(ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
-            else:
-                g.create_edge_definition(ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
+            _upsert_edge_def(g, ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
 
-        # Ensure OntologyGraph stays ontology-only: do not include instance typing edges here.
-        # The edge collection "type" is used by KnowledgeGraph; because edge definitions for a
-        # given edge collection are effectively shared, OntologyGraph must not define "type".
+        # Remove 'type' from OntologyGraph — it belongs only to KnowledgeGraph.
         try:
-            if g.has_edge_definition("type"):
-                g.delete_edge_definition("type", purge=False)
+            g.delete_edge_definition("type", purge=False)
         except Exception:
-            print("Warning: failed to remove edge definition 'type' from OntologyGraph")
+            pass  # not present, nothing to do
 
-        # Ensure OntologyGraph stays ontology-only: remove instance vertex collections that may
-        # have been added previously (keep collections, just remove from this graph).
+        # Remove instance vertex collections from OntologyGraph (keep ontology-only).
         for vcol in data_vertices:
             try:
-                if g.has_vertex_collection(vcol):
-                    g.delete_vertex_collection(vcol, purge=False)
+                g.delete_vertex_collection(vcol, purge=False)
             except Exception:
-                print(f"Warning: failed to remove vertex collection '{vcol}' from OntologyGraph")
+                pass
     print("Created/Updated OntologyGraph")
 
     data_edges = [
@@ -291,10 +301,7 @@ def load_data():
     else:
         g = db.graph("DataGraph")
         for ed in data_edges:
-            if any(e['edge_collection'] == ed['edge_collection'] for e in g.edge_definitions()):
-                g.replace_edge_definition(ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
-            else:
-                g.create_edge_definition(ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
+            _upsert_edge_def(g, ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
     print("Created/Updated DataGraph")
 
     knowledge_edges = ontology_edges_knowledge_graph + data_edges
@@ -303,10 +310,7 @@ def load_data():
     else:
         g = db.graph("KnowledgeGraph")
         for ed in knowledge_edges:
-            if any(e['edge_collection'] == ed['edge_collection'] for e in g.edge_definitions()):
-                g.replace_edge_definition(ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
-            else:
-                g.create_edge_definition(ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
+            _upsert_edge_def(g, ed['edge_collection'], ed['from_vertex_collections'], ed['to_vertex_collections'])
     print("Created/Updated KnowledgeGraph")
     print("Data loading and graph definitions completed.")
 
